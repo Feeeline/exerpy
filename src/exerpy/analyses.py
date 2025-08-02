@@ -249,7 +249,7 @@ class ExergyAnalysis:
         """
         from tespy.networks import Network
 
-        from .parser.from_tespy.tespy_config import EXERPY_TESPY_MAPPINGS
+        from .parser.from_tespy.tespy_parser import to_exerpy
 
         if isinstance(model, str):
             model = Network.from_json(model)
@@ -262,7 +262,7 @@ class ExergyAnalysis:
             )
             raise TypeError(msg)
 
-        data = model.to_exerpy(Tamb, pamb, EXERPY_TESPY_MAPPINGS)
+        data = to_exerpy(model, Tamb, pamb)
         data, Tamb, pamb = _process_json(data, Tamb, pamb, chemExLib, split_physical_exergy)
         return cls(data['components'], data['connections'], Tamb, pamb, chemExLib, split_physical_exergy)
 
@@ -544,17 +544,17 @@ class ExergyAnalysis:
     def export_to_json(self, output_path):
         """
         Export the model to a JSON file.
-        
+
         Parameters
         ----------
         output_path : str
             Path where the JSON file will be saved.
-        
+
         Returns
         -------
         None
             The model is saved to the specified path.
-        
+
         Notes
         -----
         This method serializes the model using the internal _serialize method
@@ -896,12 +896,12 @@ class ExergoeconomicAnalysis:
 
         This method assigns unique indices to each cost variable in the matrix system
         and populates a dictionary mapping these indices to variable names.
-        
+
         For material streams, separate indices are assigned for thermal, mechanical,
         and chemical exergy components when chemical exergy is enabled (otherwise only
         thermal and mechanical). For non-material streams (heat, power), a single index
         is assigned for the total exergy cost.
-        
+
         Notes
         -----
         The assigned indices are used for constructing the cost balance equations
@@ -1040,19 +1040,19 @@ class ExergoeconomicAnalysis:
     def construct_matrix(self, Tamb):
         """
         Construct the exergoeconomic cost matrix and vector.
-        
+
         Parameters
         ----------
         Tamb : float
             Ambient temperature in Kelvin.
-            
+
         Returns
         -------
         tuple
             A tuple containing:
             - A: numpy.ndarray - The coefficient matrix for the linear equation system
             - b: numpy.ndarray - The right-hand side vector for the linear equation system
-            
+
         Notes
         -----
         This method constructs a system of linear equations that includes:
@@ -1093,7 +1093,7 @@ class ExergoeconomicAnalysis:
                     }
 
                 self._b[counter] = -getattr(comp, "Z_costs", 1)
-                counter += 1      
+                counter += 1
 
         # 2. Inlet stream equations.
         # Gather all power connections.
@@ -1130,7 +1130,7 @@ class ExergoeconomicAnalysis:
                         "kind": "boundary",
                         "object": [name],
                         "property": "c_TOT"
-                    }      
+                    }
                     counter += 1
                 elif kind == "power":
                     if not has_power_outlet:
@@ -1144,7 +1144,7 @@ class ExergoeconomicAnalysis:
                             "kind": "boundary",
                             "object": [name],
                             "property": "c_TOT"
-                        }      
+                        }
                         counter += 1
                     else:
                         continue
@@ -1202,23 +1202,23 @@ class ExergoeconomicAnalysis:
     def solve_exergoeconomic_analysis(self, Tamb):
         """
         Solve the exergoeconomic cost balance equations and assign the results to connections and components.
-        
+
         Parameters
         ----------
         Tamb : float
             Ambient temperature in Kelvin.
-            
+
         Returns
         -------
         tuple
-            (exergy_cost_matrix, exergy_cost_vector) - The coefficient matrix and right-hand side vector used 
+            (exergy_cost_matrix, exergy_cost_vector) - The coefficient matrix and right-hand side vector used
             in the linear equation system.
-            
+
         Raises
         ------
         ValueError
             If the exergoeconomic system is singular or if the cost balance is not satisfied.
-            
+
         Notes
         -----
         This method performs the following steps:
@@ -1372,7 +1372,7 @@ class ExergoeconomicAnalysis:
                 f"C_F ({self.system_costs['C_F']:.3f}) + ∑Z ({self.system_costs['Z']:.3f}) = {self.system_costs['C_F'] + self.system_costs['Z']:.3f}. \n"
                 f"The problem may be caused by incorrect specifications of E_F, E_P, and E_L."
             )
-        
+
     def distribute_all_Z_diff(self, C_solution):
         """
         Distribute every dissipative cost-difference (the C_diff variables) among
@@ -1395,7 +1395,7 @@ class ExergoeconomicAnalysis:
             if hasattr(comp, "serving_weight"):
                 comp.Z_diss = comp.serving_weight * total_C_diff
 
-        
+
     def check_cost_balance(self, tol=1e-6):
         """
         Check the exergoeconomic cost balance for each component.
@@ -1450,7 +1450,7 @@ class ExergoeconomicAnalysis:
     def run(self, Exe_Eco_Costs, Tamb):
         """
         Execute the full exergoeconomic analysis.
-        
+
         Parameters
         ----------
         Exe_Eco_Costs : dict
@@ -1459,7 +1459,7 @@ class ExergoeconomicAnalysis:
             Format for connections: "<connection_name>_c": cost_value [currency/GJ]
         Tamb : float
             Ambient temperature in Kelvin.
-            
+
         Notes
         -----
         This method performs the complete exergoeconomic analysis by:
@@ -1497,7 +1497,7 @@ class ExergoeconomicAnalysis:
             Keys are variable indices (int), values are variable names (str).
         """
         return {int(k): v for k, v in self.variables.items()}
-    
+
 
     def detect_linear_dependencies(self,
                                    tol_strict: float = 1e-12,
@@ -1834,7 +1834,7 @@ class EconomicAnalysis:
     def __init__(self, pars):
         """
         Initialize the EconomicAnalysis with plant parameters provided in a dictionary.
-        
+
         Parameters
         ----------
         pars : dict
@@ -1852,7 +1852,7 @@ class EconomicAnalysis:
     def compute_crf(self):
         """
         Compute the Capital Recovery Factor (CRF) using the effective rate of return.
-        
+
         Returns
         -------
         float
@@ -1867,7 +1867,7 @@ class EconomicAnalysis:
     def compute_celf(self):
         """
         Compute the Cost Escalation Levelization Factor (CELF) for repeating expenditures.
-        
+
         Returns
         -------
         float
@@ -1884,12 +1884,12 @@ class EconomicAnalysis:
     def compute_levelized_investment_cost(self, total_PEC):
         """
         Compute the levelized investment cost (annualized investment cost).
-        
+
         Parameters
         ----------
         total_PEC : float
             Total purchasing equipment cost (PEC) across all components.
-            
+
         Returns
         -------
         float
@@ -1900,14 +1900,14 @@ class EconomicAnalysis:
     def compute_component_costs(self, PEC_list, OMC_relative):
         """
         Compute the cost rates for each component.
-        
+
         Parameters
         ----------
         PEC_list : list of float
             The purchasing equipment cost (PEC) of each component (in currency).
         OMC_relative : list of float
             For each component, the first-year OM cost as a fraction of its PEC.
-            
+
         Returns
         -------
         tuple
