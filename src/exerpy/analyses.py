@@ -189,6 +189,9 @@ class ExergyAnalysis:
         # The rest is counted as total exergy destruction with all components of the system
         self.E_D = self.E_F - self.E_P - self.E_L
 
+        # Check for unaccounted connections in the system
+        self._check_unaccounted_system_conns()
+
         if self.epsilon is not None:
             eff_str = f"{self.epsilon:.2%}"
         else:
@@ -614,6 +617,41 @@ class ExergyAnalysis:
         }
 
         return export
+        
+    def _check_unaccounted_system_conns(self):
+        """
+        Check if system boundary connections are not included in E_F, E_P, or E_L dictionaries.
+        """
+        # Collect all accounted streams
+        accounted_streams = set()
+        for dictionary in [self.E_F_dict, self.E_P_dict, self.E_L_dict]:
+            accounted_streams.update(dictionary.get("inputs", []))
+            accounted_streams.update(dictionary.get("outputs", []))
+        
+        # Identify actual system boundary connections
+        # A connection is at the boundary if source OR target is None/missing
+        system_boundary_conns = []
+        for conn_name, conn_data in self.connections.items():
+            source = conn_data.get("source_component", None)
+            target = conn_data.get("target_component", None)
+            if conn_data.get("source_component_type", None) == 1:
+                source = None
+
+            # Connection is at system boundary if one side is not connected
+            if source is None or target is None:
+                kind = conn_data.get("kind", "")
+                exergy = conn_data.get("E", 0)
+                # Only consider material/heat/power streams with significant exergy
+                if kind in ["material", "heat", "power"] and abs(exergy) > 1e-3:
+                    system_boundary_conns.append(conn_name)
+        
+        # Find unaccounted boundary connections
+        unaccounted = [conn for conn in system_boundary_conns if conn not in accounted_streams]
+        
+        if unaccounted:
+            conn_list = ", ".join(f"'{conn}'" for conn in sorted(unaccounted))
+            logging.warning(f"The following system boundary connections are not included in E_F, E_P, or E_L: {conn_list}")
+
 
 
 def _construct_components(component_data, connection_data, Tamb):
