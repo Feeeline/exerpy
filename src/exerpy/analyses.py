@@ -237,7 +237,7 @@ class ExergyAnalysis:
         """
         from tespy.networks import Network
 
-        from .parser.from_tespy.tespy_config import EXERPY_TESPY_MAPPINGS
+        from .parser.from_tespy.tespy_parser import to_exerpy
 
         if isinstance(model, str):
             model = Network.from_json(model)
@@ -247,7 +247,7 @@ class ExergyAnalysis:
             msg = "Model parameter must be a path to a valid tespy network " "export or a tespy network"
             raise TypeError(msg)
 
-        data = model.to_exerpy(Tamb, pamb, EXERPY_TESPY_MAPPINGS)
+        data = to_exerpy(model, Tamb, pamb)
         data, Tamb, pamb = _process_json(data, Tamb, pamb, chemExLib, split_physical_exergy)
         return cls(data["components"], data["connections"], Tamb, pamb, chemExLib, split_physical_exergy)
 
