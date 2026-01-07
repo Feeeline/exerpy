@@ -1,6 +1,6 @@
 from exerpy import ExergyAnalysis
 
-model_path = r'C:\Users\Felin\Documents\Masterthesis\Code\Aspen\Masterthesis\Doppelkolonne_spez_Energie.bkp'
+model_path = r'C:\Users\Felin\Documents\Masterthesis\Code\Exerpy\exerpy\examples\asu_aspen\Doppelkolonne.bkp'
 
 ean = ExergyAnalysis.from_aspen(model_path, chemExLib='Ahrendts', split_physical_exergy=False)
 
